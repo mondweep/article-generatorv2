@@ -13,9 +13,9 @@ export const handler: Handlers = {
       console.log("Received request body:", requestBody);
 
       // Extract data from request body
-      const { contextDocIds, sourceUrls, outputFolderId, geminiModelName } = requestBody;
+      const { contextDocIds, sourceUrls, outputFolderId, geminiModelName, userEmail, targetAudience } = requestBody; // Added targetAudience
 
-      if (!contextDocIds || !Array.isArray(contextDocIds) || !sourceUrls || !Array.isArray(sourceUrls) || !outputFolderId) {
+      if (!contextDocIds || !Array.isArray(contextDocIds) || !sourceUrls || !Array.isArray(sourceUrls) || !outputFolderId || !userEmail || !targetAudience) { // Added targetAudience validation
         return new Response("Invalid request data", { status: 400 });
       }
 
@@ -47,7 +47,7 @@ export const handler: Handlers = {
         const { title: scrapedTitle, content: articleContent } = scrapeResult;
 
         // 3b. Generate Summary
-        const summary = await generateSummary(articleContent, toneContext, geminiApiKey, geminiModelName || config.geminiModelName);
+        const summary = await generateSummary(articleContent, toneContext, geminiApiKey, geminiModelName || config.geminiModelName, targetAudience); // Pass targetAudience
         if (!summary) {
           console.warn(`Skipping URL due to summary generation failure: ${url}`);
           results.push({ url, status: "failure", result: `Summarization failed for ${url}` });
@@ -64,7 +64,7 @@ export const handler: Handlers = {
         const finalContent = `Source URL: ${url}\n\n---\n\n${summary}`;
 
         try {
-          await createGoogleDoc(docTitle, finalContent, outputFolderId);
+          await createGoogleDoc(docTitle, finalContent, outputFolderId, userEmail); // Pass userEmail
           console.log(`Successfully created Google Doc: "${docTitle}" for URL: ${url}`);
           results.push({ url, status: "success", result: `Successfully summarized and saved to Drive as "${docTitle}"` });
         } catch (error) {

@@ -42,6 +42,7 @@ interface GeminiGenerateContentResponse {
  * @param toneContext The combined text from Medium articles, CV, and stories for tone reference.
  * @param apiKey The Gemini API Key.
  * @param modelName The specific Gemini model name to use (e.g., "gemini-1.5-flash-latest").
+ * @param targetAudience The intended audience for the summary (e.g., "CIOs").
  * @returns A promise that resolves to the generated summary text, or null if generation fails.
  */
 export async function generateSummary(
@@ -49,8 +50,9 @@ export async function generateSummary(
   toneContext: string,
   apiKey: string,
   modelName: string,
+  targetAudience: string, // Added targetAudience parameter
 ): Promise<string | null> {
-  console.log(`Generating summary with Gemini model: ${modelName}...`);
+  console.log(`Generating summary for ${targetAudience} with Gemini model: ${modelName}...`);
 
   // Construct the endpoint dynamically
   const apiEndpoint =
@@ -76,11 +78,11 @@ ${articleContent}
 
 1.  **Summarize:** Create a concise yet informative summary of the "Article Content".
 2.  **Adopt Tone:** Write the summary strictly adhering to the tone, style, vocabulary, and perspective demonstrated in the "Tone Context". Imagine the author of the Tone Context is writing this summary.
-3.  **Target Audience:** The summary is for Chief Information Officers (CIOs). Focus on strategic implications, business value, and potential impact relevant to their role.
+3.  **Target Audience:** The summary is for the specified **Target Audience: ${targetAudience}**. Focus on strategic implications, business value, and potential impact relevant to their role.
 4.  **Visual Appeal:** Use relevant emojis appropriately (but not excessively) to make the summary engaging and visually appealing for a quick read.
 5.  **AI Perspective:** Integrate a perspective on AI adoption and scaling related to the article's subject matter, reflecting the likely views expressed in the Tone Context.
 6.  **Trustworthiness:** Ensure the summary is accurate, objective regarding the source article's points.
-7.  **My Take Section:** Include a distinct section at the end titled "**My Take:**". In this section, provide a brief perspective or reflection on the article's topic, drawing insights and viewpoints hinted at in the "Tone Context" (both CV and Stories).
+7.  **My Take Section:** Include a distinct section at the end titled "**My Take:**". In this section, provide a brief perspective or reflection on the article's topic, weaving in relevant experiences and insights from the CV and Stories provided in the Tone Context to showcase unique value and position the author as a positive contributor to the topic. Conclude this section with the exact sentence: "If this interests you and would like a confidential chat, feel free to connect with me and send a message."
 8.  **Spelling:** Use British English spelling throughout (e.g., "summarise", "organisation").
 9.  **Format:** Present the summary as a well-structured report or post. Use clear headings or bullet points if appropriate for readability. Start directly with the summary content, followed by the "My Take" section.
 

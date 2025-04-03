@@ -1,5 +1,8 @@
 # Technical Documentation: Article Summarizer (Fresh App)
 
+**Version:** 1.1
+**Date:** 2025-04-03
+
 ## 1. Technology Stack
 
 *   **Runtime:** Deno (v2.x recommended)
@@ -7,17 +10,17 @@
 *   **Language:** TypeScript, TSX (for frontend components)
 *   **UI Library:** Preact
 *   **Styling:** Tailwind CSS (via Fresh plugin)
-*   **State Management (Frontend):** Preact Signals
+*   **State Management (Frontend):** Preact Hooks (`useState`)
 *   **Key Deno Modules:**
     *   `$std/dotenv/load.ts`: For loading `.env` files server-side.
     *   `$std/http/server.ts`: Used by `auth.ts` for the temporary OAuth callback server.
     *   `$std/async/delay.ts`: Used in the API route for delays between processing URLs.
     *   `deno_dom`: (`https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts`) Used by `scraper.ts` for parsing HTML.
 *   **External APIs:**
-    *   Google Drive API v3: Used for creating Google Docs (`createGoogleDoc` in `google_apis.ts`).
-    *   Google Docs API v1: Used for fetching content from native Google Docs (`fetchNativeGoogleDocText` in `google_apis.ts`).
-    *   Google Gemini API (v1beta): Used for AI summarization (`generateSummary` in `gemini.ts`).
-    *   ScrapingBee API v1: Used as a fallback for web scraping (`scrapeWithScrapingBee` in `scraper.ts`).
+    *   Google Drive API v3: Used for creating Google Docs (`createGoogleDoc`) and granting permissions (`permissions.create`).
+    *   Google Docs API v1: Used for fetching content from native Google Docs (`fetchNativeGoogleDocText`).
+    *   Google Gemini API (v1beta): Used for AI summarization (`generateSummary`).
+    *   ScrapingBee API v1: Used as a fallback for web scraping (`scrapeWithScrapingBee`).
 *   **Authentication:** Google OAuth 2.0 (Web Application flow).
 
 ## 2. Setup & Configuration
@@ -33,49 +36,38 @@
 
 ## 3. Backend Module Details (`backend/`)
 
-*   **`config.ts`:** Uses `$std/dotenv/load.ts` to load `.env`. Exports a `config` object containing secrets and fixed values read via `Deno.env.get()`. Throws an error if required environment variables are missing.
-*   **`auth.ts`:**
-    *   Uses `config` values for client ID/secret, scopes, etc.
-    *   `startLocalServerForCode` uses `$std/http/server.ts`'s `serve` with an `AbortController` to manage the temporary server lifecycle. It resolves a promise with the code upon successful callback.
-    *   `exchangeCodeForTokens` and `refreshAccessToken` use `fetch` to interact with Google's token endpoint.
-    *   `getValidAccessToken` orchestrates checking/refreshing/fetching tokens, triggering `startLocalServerForCode` if necessary.
+*   **`config.ts`:** Loads environment variables using `$std/dotenv/load.ts`. Exports a `config` object containing secrets and fixed values. No longer contains user-specific file IDs (except Stories/CV) or target URLs.
+*   **`auth.ts`:** Handles Google OAuth 2.0 Web Application flow. Provides `getValidAccessToken`. Relies on manual refresh token update via server logs.
 *   **`google_apis.ts`:**
-    *   All functions use `getValidAccessToken` to get a token before making `fetch` requests to Google APIs.
-    *   `fetchNativeGoogleDocText` parses the JSON response from the Docs API, iterating through `body.content` to extract text from `textRun` elements.
-    *   `createGoogleDoc` manually constructs a `multipart/related` request body containing JSON metadata and plain text content for the Drive API upload endpoint.
-*   **`context_builder.ts`:** Accepts an array of Doc IDs, calls `fetchNativeGoogleDocText` for each, and concatenates the results with headers. Handles errors by logging and continuing.
-*   **`scraper.ts`:**
-    *   `scrapeWithDirectFetch` uses `fetch` with a comprehensive set of browser-like headers.
-    *   `scrapeWithScrapingBee` uses `fetch` to call the ScrapingBee API endpoint, passing the target URL and API key as query parameters.
-    *   `parseAndExtract` uses `deno_dom`'s `DOMParser` and `querySelector` to find the title and main content area, then uses `.innerText` for text extraction after removing unwanted tags.
-    *   `scrapeUrlContent` implements the fallback logic.
-*   **`gemini.ts`:**
-    *   Accepts API key and model name as parameters.
-    *   Constructs the API endpoint URL dynamically.
-    *   Builds the prompt string using template literals.
-    *   Sends a POST request with a JSON body containing the prompt to the Gemini API via `fetch`.
-    *   Extracts the text from the `candidates[0].content.parts[0].text` field in the JSON response.
+    *   `fetchNativeGoogleDocText`: Fetches native Google Doc content via Docs API.
+    *   `createGoogleDoc`: Creates a Google Doc via Drive API multipart upload. Accepts `outputFolderId` and `userEmail`. After creation, calls the Drive Permissions API (`/drive/v3/files/{fileId}/permissions`) with `role: "writer"`, `type: "user"`, and `emailAddress: userEmail` to grant edit access.
+*   **`context_builder.ts`:** Accepts an array of Doc IDs. Calls `fetchNativeGoogleDocText` for each ID (currently expects CV and Stories IDs to be passed from API route). Combines results.
+*   **`scraper.ts`:** Accepts URL and ScrapingBee API key. Tries direct fetch, falls back to ScrapingBee. Uses `deno_dom` for parsing. Returns `{ title, content }`.
+*   **`gemini.ts`:** Accepts API key, model name, target audience, article content, and tone context. Constructs dynamic API endpoint and prompt (including "My Take" with call to action, British English). Calls Gemini API.
 
 ## 4. Frontend Details
 
-*   **`routes/index.tsx`:** Simple route that imports and renders the `SummarizerForm` island.
+*   **`routes/index.tsx`:** Renders the `SummarizerForm` island.
 *   **`islands/SummarizerForm.tsx`:**
-    *   Uses `preact/hooks` (`useState`) for managing form input values, loading state, status messages, and results. (Note: Could be refactored to use Signals for potentially better performance/ergonomics).
-    *   Input `onChange` handlers update state using type assertions (`e.target as HTMLInputElement`) and optional chaining (`?.value`) for type safety.
-    *   `handleSubmit` performs basic validation, calls `extractIdFromLink`, splits URLs/links using `\n`, constructs the JSON body, and uses `fetch` to POST to `/api/generate`.
-    *   `extractIdFromLink` uses a simple regex (`/[-\w]{25,}/`) to find potential Google Drive IDs within strings. **This is basic and may fail for some URL formats.**
-    *   Conditionally renders status messages and results based on state.
-*   **`routes/oauth/callback.ts`:**
-    *   Standard Fresh API route handler.
-    *   Reads `code` and `error` from `URLSearchParams`.
-    *   Calls the backend `exchangeCodeForTokens` function.
-    *   Logs the refresh token to the server console.
-    *   Uses `Response` with status `302` and `Location` header to redirect the browser.
+    *   Uses `useState` for form state.
+    *   Includes inputs for CV link (required), Stories link (optional), Other context links (optional), Source URLs (required), Output Folder link (required), Target Audience (required), User Email (required), Gemini Model (optional).
+    *   Includes info icons with tooltips using `title` attribute.
+    *   `handleSubmit`: Performs basic validation, extracts IDs/URLs (using basic regex for IDs), constructs JSON payload including `userEmail` and `targetAudience`, POSTs to `/api/generate`, updates status/results state.
+    *   `extractIdFromLink`: Basic regex extraction for Drive IDs.
+*   **`routes/api/generate.ts`:**
+    *   API route handler. Receives POST request with JSON body.
+    *   Validates input (`contextDocIds`, `sourceUrls`, `outputFolderId`, `userEmail`, `targetAudience`).
+    *   Loads API keys from config.
+    *   Orchestrates calls to backend modules (`buildToneContext`, `scrapeUrlContent`, `generateSummary`, `createGoogleDoc`), passing necessary parameters including `userEmail` and `targetAudience`.
+    *   Returns JSON response with results array `{ url, status, result }`.
+*   **`routes/oauth/callback.ts`:** Handles Google OAuth redirect, exchanges code, logs refresh token, redirects user back to `/`.
 
 ## 5. Potential Issues & Debugging Notes
 
 *   See `tasks/tasks.md`.
-*   **ID Extraction:** The regex in `extractIdFromLink` is basic and might need improvement to handle various shared link formats reliably.
-*   **Large Context:** Sending extremely large combined context (CV + Stories) to Gemini might exceed token limits or increase latency/cost. Consider summarizing context documents first if needed.
-*   **ScrapingBee URL Parameter:** Ensure the target URL passed to ScrapingBee is properly URL-encoded by `URLSearchParams`.
-*   **Deno Cache:** If "Module not found" errors occur unexpectedly, try clearing the cache (`deno cache --reload your_entrypoint.ts`).
+*   **Google Sheet 404:** Still unresolved.
+*   **PDF/DOCX Parsing:** Not implemented. Context docs must be native Google Docs.
+*   **ID Extraction:** Regex in `extractIdFromLink` is basic.
+*   **Rate Limits:** Potential for Gemini or ScrapingBee limits.
+*   **Token Storage:** Manual refresh token update required.
+*   **Error Handling:** Basic skipping/logging implemented.

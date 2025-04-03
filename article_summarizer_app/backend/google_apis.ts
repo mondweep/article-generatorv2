@@ -69,12 +69,14 @@ export async function fetchNativeGoogleDocText(
  * @param title The desired title for the new Google Document.
  * @param content The plain text content to upload to the document.
  * @param outputFolderId The ID of the Google Drive folder to save the document in.
+ * @param userEmail The email address to grant writer permission.
  * @returns A promise that resolves when the document is created successfully.
  */
 export async function createGoogleDoc(
   title: string,
   content: string,
   outputFolderId: string,
+  userEmail: string, // Added userEmail parameter
 ): Promise<void> {
   const accessToken = await getValidAccessToken();
   // const folderId = config.googleDriveFolderId; // Use parameter instead
@@ -121,6 +123,35 @@ export async function createGoogleDoc(
     console.log(
       `Successfully created Google Doc: "${title}" (ID: ${createdFile.id})`,
     );
+
+    // Grant write permission to the user
+    console.log(`Granting writer permission to ${userEmail} for Doc ID: ${createdFile.id}`);
+    const permissionsUrl = `${config.googleApiBaseUrl}/drive/v3/files/${createdFile.id}/permissions?sendNotificationEmail=false`;
+    const permissionBody = {
+        role: "writer",
+        type: "user",
+        emailAddress: userEmail,
+    };
+
+    const permResponse = await fetch(permissionsUrl, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(permissionBody),
+    });
+
+    if (!permResponse.ok) {
+        // Log error but don't fail the whole process if permission fails
+        const permErrorBody = await permResponse.text();
+        console.error(
+            `Failed to grant permission to ${userEmail} for Doc ID ${createdFile.id}: ${permResponse.status} ${permResponse.statusText} - ${permErrorBody}`
+        );
+    } else {
+        console.log(`Successfully granted writer permission to ${userEmail}.`);
+    }
+
   } catch (error) {
     console.error(`Error creating Google Doc titled: "${title}":`, error);
     throw error; // Re-throw the error after logging
