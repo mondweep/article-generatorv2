@@ -15,8 +15,8 @@ export default function SummarizerForm() {
   const [storiesDocLink, setStoriesDocLink] = useState("");
   const [otherDocLinks, setOtherDocLinks] = useState("");
   const [sourceUrls, setSourceUrls] = useState("");
-  const [outputFolderLink, setOutputFolderLink] = useState("");
-  const [geminiModelName, setGeminiModelName] = useState("");
+  const [outputFolderLink, setOutputFolderLink] = useState("https://drive.google.com/drive/folders/1y7IFmgXs8Wrr4eTPecT4r24yguQLk8Ys?usp=drive_link"); // Default value
+  const [geminiModelName, setGeminiModelName] = useState("gemini-2.0-flash-001"); // Default value
   const [userEmail, setUserEmail] = useState("");
   const [targetAudience, setTargetAudience] = useState("CIOs"); // Added state for audience, default to CIOs
   const [loading, setLoading] = useState(false);
