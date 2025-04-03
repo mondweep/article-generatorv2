@@ -1,0 +1,32 @@
+# Environment variables
+.env
+*.env
+
+# Token files
+token.json
+*.token
+
+# Deno/Node dependencies
+node_modules/
+deno_modules/
+
+# Deno lock file
+deno.lock
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Build artifacts (if any)
+dist/
+build/
+
+# Log files
+*.log
+logs/
+
+# Python virtual environment
+venv/
+
+# Image files (like screenshots)
+*.png
