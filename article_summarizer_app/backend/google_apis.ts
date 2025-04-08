@@ -1,6 +1,5 @@
 import { config } from "./config.ts";
 import { getValidAccessToken } from "./auth.ts";
-// Removed PDF and Sheet related imports/functions
 
 /**
  * Fetches the text content of a native Google Document using the Google Docs API.
@@ -66,25 +65,22 @@ export async function fetchNativeGoogleDocText(
  * Creates a new Google Document in the specified Drive folder with the given content.
  * @param title The desired title for the new Google Document.
  * @param content The plain text content to upload to the document.
- * @param title The desired title for the new Google Document.
- * @param content The plain text content to upload to the document.
  * @param outputFolderId The ID of the Google Drive folder to save the document in.
  * @param userEmail The email address to grant writer permission.
- * @returns A promise that resolves when the document is created successfully.
+ * @returns A promise that resolves with the created document's ID.
  */
 export async function createGoogleDoc(
   title: string,
   content: string,
   outputFolderId: string,
-  userEmail: string, // Added userEmail parameter
-): Promise<void> {
+  userEmail: string,
+): Promise<{ id: string }> {
   const accessToken = await getValidAccessToken();
-  // const folderId = config.googleDriveFolderId; // Use parameter instead
 
   // Google Drive API v3 endpoint for multipart upload
   const apiUrl = `${config.googleApiBaseUrl}/upload/drive/v3/files?uploadType=multipart`;
 
-  console.log(`Creating Google Doc titled: "${title}" in folder: ${outputFolderId}`); // Use outputFolderId here
+  console.log(`Creating Google Doc titled: "${title}" in folder: ${outputFolderId}`);
 
   const boundary = `-------${Date.now()}-------`;
   const delimiter = `\r\n--${boundary}\r\n`;
@@ -93,7 +89,7 @@ export async function createGoogleDoc(
   const metadata = {
     name: title,
     mimeType: "application/vnd.google-apps.document",
-    parents: [outputFolderId], // Use parameter
+    parents: [outputFolderId],
   };
   const metadataPart =
     `Content-Type: application/json; charset=UTF-8\r\n\r\n${
@@ -152,6 +148,8 @@ export async function createGoogleDoc(
         console.log(`Successfully granted writer permission to ${userEmail}.`);
     }
 
+    // Return the document ID
+    return { id: createdFile.id };
   } catch (error) {
     console.error(`Error creating Google Doc titled: "${title}":`, error);
     throw error; // Re-throw the error after logging

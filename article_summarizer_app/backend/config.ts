@@ -58,7 +58,7 @@ export const config = {
   ].join(" "),
 
   // Redirect URI for Web app flow (must be added in Google Cloud Console)
-  redirectUri: "http://localhost:8000/oauth/callback",
+  redirectUri: "http://localhost:8080/oauth/callback",
 
   tokenFilePath: "./token.json", // Optional: Path to store tokens locally
 };

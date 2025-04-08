@@ -1,0 +1,15 @@
+# Git files
+.git
+.gitignore
+
+# Environment variables
+.env*
+
+# Node modules (if used via nodeModulesDir)
+node_modules
+
+# Deno lock file (dependencies are cached in the image)
+deno.lock
+
+# Editor/IDE specific files
+.vscode

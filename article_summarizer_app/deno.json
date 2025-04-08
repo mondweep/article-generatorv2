@@ -29,7 +29,7 @@
     "tailwindcss": "npm:tailwindcss@3.4.1",
     "tailwindcss/": "npm:/tailwindcss@3.4.1/",
     "tailwindcss/plugin": "npm:/tailwindcss@3.4.1/plugin.js",
-    "$std/": "https://deno.land/std@0.218.2/",
+    "$std/": "https://deno.land/std@0.224.0/",
     "deno_dom": "https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts"
   },
   "compilerOptions": {

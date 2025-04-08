@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState, useRef } from "preact/hooks"; // Import useRef
 
 // Simple Info Icon component (using SVG)
 function InfoIcon() {
@@ -22,19 +22,33 @@ export default function SummarizerForm() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [results, setResults] = useState<Array<{ url: string; status: string; result: string }>>([]); // More specific result type
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
 
-  async function handleSubmit() {
+  async function handleSubmit(event: Event) { // Add event parameter
+    event.preventDefault(); // Prevent default form submission
     setLoading(true);
     setStatus("Processing...");
     setResults([]);
 
-    // Basic validation (more robust validation needed)
-    // CV and Target Audience are required, Stories is optional
-    if (!cvDocLink || !sourceUrls || !outputFolderLink || !userEmail || !targetAudience) {
-      setStatus("Please fill in all required fields (CV, Source URLs, Output Folder, Email, Target Audience). Stories doc is optional.");
+    // --- Refined Validation ---
+    // 1. Check standard required fields
+    if (!cvDocLink || !outputFolderLink || !userEmail || !targetAudience) {
+      setStatus("Please fill in all required fields marked with * (CV, Output Folder, Email, Target Audience).");
       setLoading(false);
       return;
     }
+
+    // 2. Check if EITHER source URLs OR source files are provided
+    const hasSourceUrls = sourceUrls.trim() !== "";
+    const hasSourceFiles = fileInputRef.current?.files && fileInputRef.current.files.length > 0;
+
+    if (!hasSourceUrls && !hasSourceFiles) {
+      setStatus("Please provide either Source Article URLs or upload Source Files.");
+      setLoading(false);
+      return;
+    }
+    // --- End Refined Validation ---
+
 
     // Extract IDs and URLs (more robust parsing needed)
     const cvDocId = extractIdFromLink(cvDocLink);
@@ -50,8 +64,8 @@ export default function SummarizerForm() {
     // Filter context IDs - ensure CV is present, include stories/others if they exist
     const contextDocIds = [cvDocId, storiesDocId, ...otherDocIds].filter((id): id is string => id !== null);
 
-    if (!cvDocId || !outputFolderId || sourceUrlList.length === 0) { // Check required IDs again after filtering
-      setStatus("Invalid Google Drive link format for required fields (CV, Output Folder) or no valid Source URLs provided.");
+    if (!cvDocId || !outputFolderId) { // Check required IDs again after filtering
+      setStatus("Invalid Google Drive link format for required fields (CV, Output Folder).");
       setLoading(false);
       return;
     }
@@ -60,25 +74,37 @@ export default function SummarizerForm() {
         setLoading(false);
         return;
     }
+    // This redundant check is removed as it's covered by the refined validation above.
+    // if (sourceUrlList.length === 0 && (!fileInputRef.current || !fileInputRef.current.files || fileInputRef.current.files.length === 0)) {
+    //     setStatus("Please provide either Source URLs or upload Source Files.");
+    //     setLoading(false);
+    //     return;
+    // }
 
 
-    // Construct request body
-    const requestBody = {
-      contextDocIds: contextDocIds, // Send filtered list
-      sourceUrls: sourceUrlList,
-      outputFolderId: outputFolderId,
-      userEmail: userEmail,
-      targetAudience: targetAudience, // Added target audience
-      geminiModelName: geminiModelName || undefined, // Optional
-    };
+    // Create FormData
+    const formData = new FormData();
+    contextDocIds.forEach(id => formData.append('contextDocIds[]', id)); // Append array items individually
+    sourceUrlList.forEach(url => formData.append('sourceUrls[]', url)); // Append array items individually
+    formData.append('outputFolderId', outputFolderId);
+    formData.append('userEmail', userEmail);
+    formData.append('targetAudience', targetAudience);
+    if (geminiModelName) {
+        formData.append('geminiModelName', geminiModelName);
+    }
+
+    // Append files
+    if (fileInputRef.current && fileInputRef.current.files) {
+        for (let i = 0; i < fileInputRef.current.files.length; i++) {
+            formData.append('sourceFiles', fileInputRef.current.files[i]); // Use 'sourceFiles' as the key
+        }
+    }
 
     try {
       const response = await fetch("/api/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
+        // No 'Content-Type' header - browser sets it for FormData
+        body: formData, // Send FormData object
       });
 
       const data = await response.json(); // Try to parse JSON regardless of status
@@ -107,7 +133,7 @@ export default function SummarizerForm() {
   }
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="max-w-lg space-y-4"> {/* Added space-y-4 */}
+    <form onSubmit={handleSubmit} class="max-w-lg space-y-4"> {/* Pass handleSubmit directly */}
       <div>
         <label htmlFor="cvDocLink" class="block text-gray-700 text-sm font-bold mb-2" title="Link to your CV as a native Google Doc. This is required for tone context.">
           CV Google Doc Link:*
@@ -130,12 +156,28 @@ export default function SummarizerForm() {
         <textarea id="otherDocLinks" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value={otherDocLinks} onChange={(e) => setOtherDocLinks((e.target as HTMLTextAreaElement)?.value ?? "")} rows={3} />
       </div>
       <div>
-        <label htmlFor="sourceUrls" class="block text-gray-700 text-sm font-bold mb-2" title="URLs of the articles you want to summarize (Required, one URL per line).">
-          Source Article URLs:*
+        <label htmlFor="sourceUrls" class="block text-gray-700 text-sm font-bold mb-2" title="URLs of the articles you want to summarize (Required if not uploading files, one URL per line).">
+          Source Article URLs (or Upload Files Below):*
           <InfoIcon />
         </label>
-        <textarea id="sourceUrls" required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value={sourceUrls} onChange={(e) => setSourceUrls((e.target as HTMLTextAreaElement)?.value ?? "")} rows={5} />
+        <textarea id="sourceUrls" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value={sourceUrls} onChange={(e) => setSourceUrls((e.target as HTMLTextAreaElement)?.value ?? "")} rows={5} />
       </div>
+      {/* New File Input Section */}
+      <div>
+        <label htmlFor="sourceFiles" class="block text-gray-700 text-sm font-bold mb-2" title="Upload source documents (PDF, Word, Excel). Required if not providing URLs.">
+          Upload Source Files (PDF, DOC, DOCX, XLS, XLSX):*
+          <InfoIcon />
+        </label>
+        <input
+          type="file"
+          id="sourceFiles"
+          ref={fileInputRef} // Use ref
+          multiple
+          accept=".pdf,.doc,.docx,.xls,.xlsx"
+          class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+        />
+      </div>
+      {/* End New File Input Section */}
       <div>
         <label htmlFor="outputFolderLink" class="block text-gray-700 text-sm font-bold mb-2" title="Link to the Google Drive folder where summaries should be saved (Required).">
           Output Google Drive Folder Link:*
@@ -177,7 +219,7 @@ export default function SummarizerForm() {
           <ul>
             {results.map((result, index) => (
               <li key={index} class={`mb-2 ${result.status === 'failure' ? 'text-red-600' : 'text-green-600'}`}>
-                <strong>URL:</strong> {result.url}<br/>
+                <strong>URL/File:</strong> {result.url}<br/> {/* Changed label slightly */}
                 <strong>Status:</strong> {result.status}<br/>
                 <strong>Message:</strong> {result.result}
               </li>

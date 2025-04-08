@@ -151,7 +151,7 @@ async function startLocalServerForCode(): Promise<string> {
         // Handle other paths or favicon requests gracefully
         return new Response("Not Found", { status: 404 });
       }, {
-        port: 8000, // Ensure this matches the port in config.redirectUri
+        port: 8080, // Ensure this matches the port in config.redirectUri
         signal,
         onListen: ({ hostname, port }) => {
           console.log(`Listening on http://${hostname}:${port}`);
