@@ -1,4 +1,4 @@
- # Use an official Deno runtime as a parent image
+# Use an official Deno runtime as a parent image
 # Using alpine for a smaller image size
 FROM denoland/deno:alpine
 
@@ -30,10 +30,11 @@ RUN deno cache dev.ts backend/parsers.ts --config deno.json
 # Bundle application source
 COPY . .
 
-# Expose port 8000 to the outside world
-EXPOSE 8000
+# Define the port the app will run on
+ENV PORT=3020
 
-# Define the command to run the application using the development entry point
-# Deno Fresh typically uses the same script (dev.ts) for dev and preview/prod start
-# Use 0.0.0.0 to bind to all available network interfaces inside the container
-CMD ["run", "-A", "dev.ts"]
+# Expose port to the outside world
+EXPOSE $PORT
+
+# Define the command to run the application using the start task
+CMD ["task", "start"]
