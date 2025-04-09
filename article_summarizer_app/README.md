@@ -90,6 +90,27 @@ This is a web application built with Deno and the Fresh framework that allows a 
     *   The backend will use the refresh token. Observe the UI and terminal for progress.
     *   Generated summaries will appear in the specified Google Drive folder with edit access granted to your email.
 
+## Running with Docker
+
+1.  **Build the Docker image:**
+    ```bash
+    docker build -t article-summarizer .
+    ```
+2.  **Run the Docker container:**
+    ```bash
+    docker run -d -p 3020:3020 \
+      -e GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID \
+      -e GOOGLE_CLIENT_SECRET=YOUR_GOOGLE_CLIENT_SECRET \
+      -e GEMINI_API_KEY=YOUR_GEMINI_API_KEY \
+      -e SCRAPING_API_KEY=YOUR_SCRAPINGBEE_API_KEY \
+      -e GOOGLE_DRIVE_FOLDER_ID=YOUR_GOOGLE_DRIVE_FOLDER_ID \
+      -e GOOGLE_CV_DOC_ID=YOUR_CV_GOOGLE_DOC_ID \
+      -e GOOGLE_STORIES_DOC_ID=YOUR_STORIES_GOOGLE_DOC_ID \
+      article-summarizer
+    ```
+    Replace the environment variables with your actual values.  You can also add the `GOOGLE_REFRESH_TOKEN` if you have it.
+3.  **Access the application:** Open `http://localhost:3020` in your web browser.
+
 ## Project Structure
 
 *   `backend/`: Contains the core Deno logic (auth, API calls, scraping, context building).
@@ -108,3 +129,6 @@ This is a web application built with Deno and the Fresh framework that allows a 
 ## Known Issues
 
 *   See `tasks/tasks.md`.
+
+
+## End
